@@ -1,0 +1,8 @@
+.env
+*.frsrunfile
+config.yml*
+config-frs.yml*
+editlimit
+botpassword
+yapperbot-frs
+prune.txt
