@@ -1,5 +1,0 @@
-dsn: # A DSN in Golang format. Example: user:password@tcp(host:port)/database
-configtemplate: # The name of the template that is being used for the pruner options
-formatsjsonpageid: # The page ID of the JSON file containing the formats configuration: {"format name": "regex"}
-defaultexpiredmsgtemplate: # The default message to send to people who have been expired off the list
-defaulttalkmsgheader: # The default header for the talk message for people who have been expired off the list

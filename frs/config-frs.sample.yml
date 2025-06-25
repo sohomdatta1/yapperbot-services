@@ -1,0 +1,5 @@
+frspageid: # Page ID of the WP:FRS page
+gaguidelinesheaderpageid: # Page ID of the page containing the GA guidelines header, that maps the topics to subtopics
+sentcountpageid: # Page ID of the page used to store the SentCount JSON
+rfcsdonepageid: # Page ID of the page used to store the RFCs done JSON
+editlimit: # A number representing the limit on the number of edits the bot can have.

@@ -1,0 +1,5 @@
+dsn: user:pass@tcp(127.0.0.1:4711)/testwiki_p
+configtemplate: User:Yapperbot/Pruner/use
+formatsjsonpageid: 112293
+defaultexpiredmsgtemplate: User:Yapperbot/Pruner/expired
+defaulttalkmsgheader: You have been pruned from a list
