@@ -22,8 +22,8 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/mashedkeyboard/ybtools/v2"
 	"github.com/metal3d/go-slugify"
+	"github.com/sohomdatta1/yapperbot-services/ybtools"
 )
 
 // loadFromRunfile takes a category name, and loads the applicable .frsrunfile file, if there is one.

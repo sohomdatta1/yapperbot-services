@@ -11,7 +11,7 @@ import (
 
 	// needs to be blank-imported to make the driver work
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/mashedkeyboard/ybtools/v2"
+	"github.com/sohomdatta1/yapperbot-services/ybtools"
 )
 
 //

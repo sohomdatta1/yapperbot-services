@@ -32,7 +32,7 @@ import (
 
 	"cgt.name/pkg/go-mwclient"
 	"cgt.name/pkg/go-mwclient/params"
-	"github.com/mashedkeyboard/ybtools/v2"
+	"github.com/sohomdatta1/yapperbot-services/ybtools"
 )
 
 // list is the overall list of FRSUsers mapped to their headers.
