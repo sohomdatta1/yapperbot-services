@@ -66,7 +66,7 @@ func init() {
 	if err != nil {
 		PanicErr("Bot password file could not be read at detected path!")
 	}
-	botPassword = string(botPasswordFile)
+	botPassword = strings.TrimSpace(string(botPasswordFile))
 }
 
 func setupTaskConfigFile() {
