@@ -1,0 +1,5 @@
+dsn: user:password@tcp(enwiki.analytics.db.svc.eqiad.wmflabs:3306)/enwiki_p
+configtemplate: User:Yapperbot/Pruner/use
+formatsjsonpageid: 64338959
+defaultexpiredmsgtemplate: User:Yapperbot/Pruner/expired
+defaulttalkmsgheader: You have been pruned from a list

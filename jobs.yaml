@@ -1,0 +1,13 @@
+---
+- name: frs
+  command: bash -c "cd ./prod/frs && ./frs"
+  image: bookworm
+  mount: all
+  schedule: "30 * * * *"
+  mem: 950M
+- name: pruner
+  command: bash -c "cd ./prod/pruner && ./pruner"
+  image: bookworm
+  mount: all
+  schedule: "0 18 * * 1"
+  mem: 950M
