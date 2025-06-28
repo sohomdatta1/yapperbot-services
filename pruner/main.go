@@ -44,7 +44,7 @@ var formats = map[string]*regexp.Regexp{}
 func init() {
 	ybtools.SetupBot(ybtools.BotSettings{
 		TaskName: "Pruner",
-		BotUser:  "Yapperbot",
+		BotUser:  "SodiumBot",
 	})
 	ybtools.ParseTaskConfig(&config)
 }

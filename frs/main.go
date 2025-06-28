@@ -38,7 +38,7 @@ import (
 )
 
 func init() {
-	ybtools.SetupBot(ybtools.BotSettings{TaskName: "FRS", BotUser: "Yapperbot"})
+	ybtools.SetupBot(ybtools.BotSettings{TaskName: "FRS", BotUser: "SodiumBot"})
 	ybtools.ParseTaskConfig(&yapperconfig.Config)
 }
 
