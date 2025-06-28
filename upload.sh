@@ -36,3 +36,5 @@ ssh "$USER@login.toolforge.org" "become yapping-sodium bash $STAGING_DIR/deploy-
 ssh "$USER@login.toolforge.org" "become yapping-sodium bash dologmsg '$USER built and uploaded a new version'"
 
 rm -rf "/home/$USER/tmp"
+
+echo "You should now be ready to run toolforge jobs load /data/project/yapping-sodium/prod/jobs.yaml if you want to reload the tasks"
