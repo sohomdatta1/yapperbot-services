@@ -1,7 +1,6 @@
 package ybtools
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -54,7 +53,7 @@ func ParseTaskConfig(cobj interface{}) {
 }
 
 func init() {
-	botConfigFile, err := ioutil.ReadFile(findConfigFile(localConfigFilename, globalConfigFilename))
+	botConfigFile, err := os.ReadFile(findConfigFile(localConfigFilename, globalConfigFilename))
 	if err != nil {
 		PanicErr("Bot config file could not be read at detected path!")
 	}
@@ -63,7 +62,7 @@ func init() {
 		PanicErr("Bot config file was invalid!")
 	}
 
-	botPasswordFile, err := ioutil.ReadFile(findConfigFile(botPasswordFilename, botPasswordFilename))
+	botPasswordFile, err := os.ReadFile(findConfigFile(botPasswordFilename, botPasswordFilename))
 	if err != nil {
 		PanicErr("Bot password file could not be read at detected path!")
 	}
@@ -74,7 +73,7 @@ func setupTaskConfigFile() {
 	var err error
 	var taskConfigForEditLimit toolConfigWithEditLimit
 
-	taskConfigFile, err = ioutil.ReadFile("config-" + strings.ToLower(slugify.Marshal(settings.TaskName)) + ".yml")
+	taskConfigFile, err = os.ReadFile("config-" + strings.ToLower(slugify.Marshal(settings.TaskName)) + ".yml")
 	if err != nil {
 		log.Println("No task-specific config file found, ignoring")
 	}

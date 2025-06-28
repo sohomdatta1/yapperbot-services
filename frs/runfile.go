@@ -19,7 +19,7 @@ package main
 //
 
 import (
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/metal3d/go-slugify"
@@ -35,10 +35,10 @@ func loadFromRunfile(category string) (timestamp, pageID string) {
 	var startRunfile []byte
 	// runfile stores the last categorisation timestamp
 	runfileName := slugify.Marshal(category) + ".frsrunfile"
-	startRunfile, err := ioutil.ReadFile(runfileName)
+	startRunfile, err := os.ReadFile(runfileName)
 	if err != nil {
 		// the runfile doesn't exist probably, try creating it
-		err := ioutil.WriteFile(runfileName, []byte(""), 0644)
+		err := os.WriteFile(runfileName, []byte(""), 0644)
 		if err != nil {
 			ybtools.PanicErr("Failed to create runfile with error ", err)
 		}

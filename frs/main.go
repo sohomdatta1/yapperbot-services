@@ -19,9 +19,8 @@ package main
 //
 
 import (
-	"io/ioutil"
 	"log"
-	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -46,8 +45,6 @@ func init() {
 func main() {
 	w := ybtools.CreateAndAuthenticateClient(ybtools.DefaultMaxlag)
 
-	rand.Seed(time.Now().UnixNano())
-
 	frslist.Populate()
 	rfc.LoadRfcsDone(w)
 	defer ybtools.SaveEditLimit()
@@ -56,7 +53,7 @@ func main() {
 
 	processCategory(w, "Category:Wikipedia requests for comment", true)
 	processCategory(w, "Category:Good article nominees", false)
-	// finishRun(w)
+	finishRun(w)
 }
 
 // processCategory takes a mwclient instance, a category name, and a bool indicating if the category contains RfCs.
@@ -156,6 +153,10 @@ func processCategory(w *mwclient.Client, category string, rfcCat bool) {
 					continue
 				}
 
+				if strings.HasPrefix(strings.ToLower(pageTitle), "category:") {
+					log.Println("Category", pageTitle, "inside master category so skipping it")
+				}
+
 				pageContent, err := ybtools.GetContentFromPage(page)
 				if err != nil {
 					log.Println("getContentFromPage failed on page ID", pageID, "so skipping it")
@@ -213,7 +214,7 @@ func processCategory(w *mwclient.Client, category string, rfcCat bool) {
 	// If it uses a runfile, and there actually is something to write
 	if !rfcCat && len(firstItem) > 0 {
 		// Store the done timestamp and page id into the runfile for next use
-		err := ioutil.WriteFile(slugify.Marshal(category)+".frsrunfile", []byte(firstItem), 0644)
+		err := os.WriteFile(slugify.Marshal(category)+".frsrunfile", []byte(firstItem), 0644)
 		if err != nil {
 			ybtools.PanicErr("Failed to write timestamp and id to runfile")
 		}

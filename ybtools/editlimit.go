@@ -2,8 +2,8 @@ package ybtools
 
 import (
 	"encoding/binary"
-	"io/ioutil"
 	"log"
+	"os"
 )
 
 //
@@ -50,7 +50,7 @@ func SaveEditLimit() {
 	if currentUsedEditLimit > 0 {
 		buf := make([]byte, binary.MaxVarintLen16)
 		binary.PutVarint(buf, currentUsedEditLimit)
-		err := ioutil.WriteFile("editlimit", buf, 0644)
+		err := os.WriteFile("editlimit", buf, 0644)
 		if err != nil {
 			PanicErr("Failed to write edit limit file with err ", err)
 		}
@@ -63,10 +63,10 @@ func SaveEditLimit() {
 func setupEditLimit(limit int64) {
 	editLimit = limit
 
-	editLimitFileContents, err := ioutil.ReadFile("editlimit")
+	editLimitFileContents, err := os.ReadFile("editlimit")
 	if err != nil {
 		// the edit limit file doesn't exist probably, try creating it
-		err := ioutil.WriteFile("editlimit", []uint8{0x00, 0x00, 0x00}, 0644)
+		err := os.WriteFile("editlimit", []uint8{0x00, 0x00, 0x00}, 0644)
 		if err != nil {
 			PanicErr("Failed to create edit limit file with error ", err)
 		}
