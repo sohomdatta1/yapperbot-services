@@ -42,9 +42,10 @@ const lastEditQueryTemplate string = `SELECT actor_user.actor_name FROM revision
 INNER JOIN actor_user ON actor_user.actor_name = ? AND actor_id = rev_actor
 WHERE rev_timestamp > ? LIMIT 1;`
 
-const blockQueryTemplate string = `SELECT ipb_id FROM ipblocks
-INNER JOIN user ON user_name = ? AND user_id = ipb_user
-WHERE ipb_expiry = "infinity" AND ipb_timestamp < ? LIMIT 1;`
+const blockQueryTemplate string = `SELECT ipb_id FROM block_target
+INNER JOIN user ON user_name = ? AND user_id = bt_user
+INNER JOIN blocks ON bl_target = bt_id
+WHERE bl_expiry = "infinity" AND bl_timestamp < ? LIMIT 1;`
 
 const userRedirectQueryTemplate string = `SELECT rd_title FROM redirect
 INNER JOIN page ON page_namespace = 3 AND page_title = ? AND rd_from = page_id
