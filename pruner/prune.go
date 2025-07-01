@@ -44,7 +44,7 @@ WHERE rev_timestamp > ? LIMIT 1;`
 
 const blockQueryTemplate string = `SELECT ipb_id FROM block_target
 INNER JOIN user ON user_name = ? AND user_id = bt_user
-INNER JOIN blocks ON bl_target = bt_id
+INNER JOIN block ON bl_target = bt_id
 WHERE bl_expiry = "infinity" AND bl_timestamp < ? LIMIT 1;`
 
 const userRedirectQueryTemplate string = `SELECT rd_title FROM redirect
