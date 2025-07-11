@@ -131,6 +131,8 @@ func pruneUsersFromList(
 		}
 		var username string = match[1]
 
+		username = strings.Split(username, "/")[0]
+
 		if checkedUsers[username] {
 			continue
 		}
