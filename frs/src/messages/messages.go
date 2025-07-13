@@ -143,7 +143,7 @@ func SendMessageQueue(w *mwclient.Client) {
 			}
 		}
 
-		textBuilder.WriteString("}} ~~~~")
+		textBuilder.WriteString("}} <small>(trialing replacing <span class=\"plainlinks\">[https://en.wikipedia.org/wiki/User:Yapperbot Yapperbot]</span>)</small> ~~~~")
 		var notificationText string = textBuilder.String()
 
 		var sectiontitle string
