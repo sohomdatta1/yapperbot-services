@@ -42,7 +42,7 @@ const lastEditQueryTemplate string = `SELECT actor_user.actor_name FROM revision
 INNER JOIN actor_user ON actor_user.actor_name = ? AND actor_id = rev_actor
 WHERE rev_timestamp > ? LIMIT 1;`
 
-const blockQueryTemplate string = `SELECT ipb_id FROM block_target
+const blockQueryTemplate string = `SELECT bt_id FROM block_target
 INNER JOIN user ON user_name = ? AND user_id = bt_user
 INNER JOIN block ON bl_target = bt_id
 WHERE bl_expiry = "infinity" AND bl_timestamp < ? LIMIT 1;`
