@@ -200,7 +200,7 @@ func processArticle(w *mwclient.Client, pageTitle, pageContent, revTS, curTS str
 
 		if expiredMsg != "none" {
 			for _, user := range expiredUsers {
-				userMessages[user] = "{{subst:" + strings.Join([]string{expiredMsg, user, pageTitle, parameters["inactivity"]}, "|") + "}}\n <small>(trialing replacing <span class=\"plainlinks\">[https://en.wikipedia.org/wiki/User:Yapperbot Yapperbot]</span>)</small> ~~~~"
+				userMessages[user] = "{{subst:" + strings.Join([]string{expiredMsg, user, pageTitle, parameters["inactivity"]}, "|") + "}}\n <small>(replacing <span class=\"plainlinks\">[https://en.wikipedia.org/wiki/User:Yapperbot Yapperbot]</span>)</small> ~~~~"
 			}
 
 			talkMessageHeader, ok := parameters["talkmsgheader"]
