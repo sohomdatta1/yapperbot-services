@@ -19,11 +19,13 @@ package main
 //
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/sohomdatta1/yapperbot-services/frs/src/ga"
 	"github.com/sohomdatta1/yapperbot-services/frs/src/rfc"
+	"github.com/sohomdatta1/yapperbot-services/ybtools"
 )
 
 // rfcMatcher is a regex that matches {{rfc}} templates on pages.
@@ -102,6 +104,11 @@ func extractRfcs(content string, title string, excludeDone bool) (rfcs []rfc.RfC
 // and returns the GA nom object.
 func extractGANom(content string, title string) (nom ga.Nom) {
 	matchedGaTag := gaMatcher.FindStringSubmatch(content)
+	defer func() {
+		if r := recover(); r != nil {
+			ybtools.PanicErr(fmt.Sprintf("Substring matching for %s failed in matchers.extractGANom", title))
+		}
+	}()
 	// first capture group is name of topic, if applicable
 	// second capture group is name of subtopic
 	nom = ga.Nom{Topic: matchedGaTag[2], Subtopic: matchedGaTag[1], Article: title}
