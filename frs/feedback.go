@@ -21,6 +21,7 @@ package main
 import (
 	"log"
 	"math/rand"
+	"strings"
 
 	"github.com/sohomdatta1/yapperbot-services/frs/src/frslist"
 	"github.com/sohomdatta1/yapperbot-services/frs/src/messages"
@@ -60,6 +61,12 @@ func requestFeedbackFor(requester frsRequesting, w *mwclient.Client) {
 	var rfcid string
 	if rfc, isRfC := requester.(rfc.RfC); isRfC {
 		rfcid = rfc.ID
+	}
+
+	// Early return if the page is in userspace, prevent
+	// https://en.wikipedia.org/wiki/Wikipedia:Bots/Noticeboard#c-Dw31415-20260109145700-Dw31415_-_DwAlphaBot_-_SodiumBot_conflict_on_RfCHistory
+	if strings.HasPrefix(requester.PageTitle(), "User:") {
+		return
 	}
 
 	if len(headersToSendTo) > 0 {
