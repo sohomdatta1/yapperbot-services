@@ -21,8 +21,9 @@ package ybtools
 // BotSettings is a struct storing all the information about the bot
 // needed to make the tools library work.
 type BotSettings struct {
-	TaskName string
-	BotUser  string
+	TaskName         string
+	BotUser          string
+	ToolforgeAccount string
 }
 
 var settings BotSettings

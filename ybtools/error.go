@@ -29,7 +29,7 @@ import (
 // also sending a message to the tool inbox on Toolforge explaining the issue.
 func PanicErr(v ...interface{}) {
 	strerr := fmt.Sprint(v...)
-	toolemail := "tools." + strings.ToLower(settings.BotUser) + "@tools.wmflabs.org"
+	toolemail := "tools." + strings.ToLower(settings.ToolforgeAccount) + "@tools.wmflabs.org"
 
 	m := gomail.NewMessage()
 	m.SetHeader("From", toolemail)

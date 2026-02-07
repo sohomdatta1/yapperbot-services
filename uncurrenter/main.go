@@ -34,7 +34,7 @@ import (
 var currentTemplateRegex *regexp.Regexp
 
 func main() {
-	ybtools.SetupBot(ybtools.BotSettings{TaskName: "Uncurrenter", BotUser: "Yapperbot"})
+	ybtools.SetupBot(ybtools.BotSettings{TaskName: "Uncurrenter", BotUser: "Yapperbot", ToolforgeAccount: "yapping-sodium"})
 	defer ybtools.SaveEditLimit()
 
 	w := ybtools.CreateAndAuthenticateClient(ybtools.DefaultMaxlag)
