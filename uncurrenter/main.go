@@ -78,10 +78,10 @@ func main() {
 		"geititle":       "Template:Current",
 		"geinamespace":   "0",
 		"geifilterredir": "nonredirects",
-		"rvprop":         "timestamp|content",
+		"rvprop":         "timestamp|content|contentmodel",
 		"rvslots":        "main",
 		"curtimestamp":   "1",
-	}, func(pageTitle, pageContent, revTS, curTS string) {
+	}, func(pageTitle, pageContent, pageContentModel, revTS, curTS string) {
 		revTSProcessed, err := time.Parse(time.RFC3339, revTS)
 		if err != nil {
 			log.Println("Failed to parse last revision timestamp, so skipping the page. Error was", err)

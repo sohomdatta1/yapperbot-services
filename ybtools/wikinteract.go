@@ -30,7 +30,7 @@ import (
 type NoMaxlagFunction func() error
 
 // PageInQueryCallback is a function used as a callback for ForPageInQuery.
-type PageInQueryCallback func(pageTitle, pageContent, revTS, curTS string)
+type PageInQueryCallback func(pageTitle, pageContent, pageContentModel, revTS, curTS string)
 
 var w *mwclient.Client
 
@@ -160,7 +160,12 @@ func ForPageInQuery(parameters params.Values, callback PageInQueryCallback) {
 					continue
 				}
 
-				callback(pageTitle, pageContent, lastTimestamp, curTS)
+				pageContentModel, err := pageRevisions[0].GetString("slots", "main", "contentmodel")
+				if err != nil {
+					log.Printf("Failed to get contentmodel from revision on page `%s` so skipping it. Error was %s\n", pageTitle, err)
+				}
+
+				callback(pageTitle, pageContent, pageContentModel, lastTimestamp, curTS)
 			}
 		}
 	}

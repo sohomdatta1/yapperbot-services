@@ -2,6 +2,8 @@ package main
 
 import (
 	"crypto/md5"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"regexp"
@@ -74,9 +76,9 @@ func main() {
 	// processArticleInitial just serves as a wrapper around processArticle;
 	// the only reason it is here is to set retry to false on the first run,
 	// so we can use ybtools ForPageInQuery easily.
-	var processArticleInitial = func(pageTitle, pageContent, revTS, curTS string) {
+	var processArticleInitial = func(pageTitle, pageContent, pageContentModel, revTS, curTS string) {
 		log.Println("Processing page", pageTitle)
-		processArticle(w, pageTitle, pageContent, revTS, curTS, false)
+		processArticle(w, pageTitle, pageContent, pageContentModel, revTS, curTS, false)
 	}
 
 	withDatabaseConnection(func() {
@@ -86,18 +88,19 @@ func main() {
 			"generator":      "embeddedin",
 			"geititle":       config.ConfigTemplate,
 			"geifilterredir": "nonredirects",
-			"rvprop":         "timestamp|content",
+			"rvprop":         "timestamp|content|contentmodel",
 			"rvslots":        "main",
 			"curtimestamp":   "1",
 		}, processArticleInitial)
 	})
 }
 
-func processArticle(w *mwclient.Client, pageTitle, pageContent, revTS, curTS string, retry bool) {
+func enumeratePagePrunerConfig(pageTitle string, pageContent string) (time.Time, time.Time, string, map[string]string, error) {
 	match := templateRegex.FindStringSubmatch(pageContent)
+
 	if len(match) == 0 {
 		log.Println(pageTitle, "included in transclusions of template, but didn't match regex!")
-		return
+		return time.Time{}, time.Time{}, "none", map[string]string{}, errors.New("Does not have a valid template configuration")
 	}
 
 	var parameters = map[string]string{}
@@ -113,7 +116,7 @@ func processArticle(w *mwclient.Client, pageTitle, pageContent, revTS, curTS str
 	for _, param := range []string{"inactivity", "format"} {
 		if _, ok := parameters[param]; !ok {
 			log.Println(pageTitle, "has an invalid configuration: missing", param)
-			return
+			return time.Time{}, time.Time{}, "none", map[string]string{}, errors.New("Does not have a valid template configuration")
 		}
 	}
 
@@ -121,13 +124,7 @@ func processArticle(w *mwclient.Client, pageTitle, pageContent, revTS, curTS str
 	inactivityTimestamp, err := tparse.AddDuration(time.Now(), "-"+strings.ReplaceAll(parameters["inactivity"], " ", ""))
 	if err != nil {
 		log.Println(pageTitle, "has an invalid inactivity timeout value, of", parameters["inactivity"], "- error was", err)
-		return
-	}
-
-	formatRegex, ok := formats[parameters["format"]]
-	if !ok {
-		log.Println(pageTitle, "has an invalid format value, of", parameters["format"])
-		return
+		return time.Time{}, time.Time{}, "none", map[string]string{}, errors.New("Does not have a valid template configuration")
 	}
 
 	var blockTimestamp time.Time
@@ -146,12 +143,56 @@ func processArticle(w *mwclient.Client, pageTitle, pageContent, revTS, curTS str
 		}
 	}
 
-	if blockTimestamp == (time.Time{}) {
+	if blockTimestamp.Equal((time.Time{})) {
 		// Otherwise, default to removing blocked users after two months
 		blockTimestamp = time.Now().AddDate(0, -2, 0)
 	}
 
-	newPageContent, numExpired, numIndeffed, numRenamed, expiredUsers, _ := pruneUsersFromList(pageTitle, pageContent, formatRegex, inactivityTimestamp, blockTimestamp)
+	return blockTimestamp, inactivityTimestamp, parameters["format"], parameters, nil
+}
+
+func processArticle(w *mwclient.Client, pageTitle, pageContent, pageContentModel, revTS, curTS string, retry bool) {
+	var (
+		blockTimestamp                      time.Time
+		inactivityTimestamp                 time.Time
+		format                              string
+		err                                 error
+		numExpired, numIndeffed, numRenamed int
+		newPageContent                      string
+		expiredUsers                        []string
+		parameters                          map[string]string
+	)
+
+	switch pageContentModel {
+	case "wikitext":
+		blockTimestamp, inactivityTimestamp, format, parameters, err = enumeratePagePrunerConfig(pageTitle, pageContent)
+
+		if err != nil {
+			log.Printf("Unable to proceed further with `%s` due to the following error `%s`", pageTitle, pageContent)
+			return
+		}
+
+		formatRegex, ok := formats[format]
+		if !ok {
+			log.Println(pageTitle, "has an invalid format value, of", format)
+			return
+		}
+
+		newPageContent, numExpired, numIndeffed, numRenamed, expiredUsers, _ = pruneUsersFromWikitextList(pageTitle, pageContent, formatRegex, inactivityTimestamp, blockTimestamp)
+	case "MassMessageListContent":
+		var parsedPageContent MassMessageContent
+		err := json.Unmarshal([]byte(pageContent), &parsedPageContent)
+
+		if err != nil {
+			log.Printf("Unable to correctly parse the contentmodel of the mass message list `%s`, the error is: %s", pageTitle, err)
+		}
+
+		blockTimestamp, inactivityTimestamp, format, parameters, err = enumeratePagePrunerConfig(pageTitle, parsedPageContent.Description)
+
+		newPageContent, numExpired, numIndeffed, numRenamed, expiredUsers, _ = pruneUsersFromMMList(pageTitle, parsedPageContent, inactivityTimestamp, blockTimestamp)
+	default:
+		log.Printf("Incorrect contentmodel, unable to proceed further on `%s`", pageTitle)
+	}
 
 	if newPageContent == pageContent {
 		log.Println("newPageContent was the same as pageContent on page", pageTitle, "so ignoring")
@@ -189,6 +230,7 @@ func processArticle(w *mwclient.Client, pageTitle, pageContent, revTS, curTS str
 		"basetimestamp":  revTS,
 		"starttimestamp": curTS,
 	})
+
 	if err == nil {
 		log.Println("Pruned users on", pageTitle, "so starting notifications")
 		var userMessages = map[string]string{}
@@ -225,9 +267,9 @@ func processArticle(w *mwclient.Client, pageTitle, pageContent, revTS, curTS str
 						log.Println("Successfully notified", user, "of their pruning from", pageTitle)
 						time.Sleep(5 * time.Second)
 					} else {
-						switch err.(type) {
+						switch err := err.(type) {
 						case mwclient.APIError:
-							switch err.(mwclient.APIError).Code {
+							switch err.Code {
 							case "noedit", "writeapidenied", "blocked":
 								ybtools.PanicErr("noedit/writeapidenied/blocked code returned, the bot may have been blocked. Dying")
 							default:
@@ -241,9 +283,9 @@ func processArticle(w *mwclient.Client, pageTitle, pageContent, revTS, curTS str
 			}
 		}
 	} else {
-		switch err.(type) {
+		switch err := err.(type) {
 		case mwclient.APIError:
-			if err.(mwclient.APIError).Code == "editconflict" {
+			if err.Code == "editconflict" {
 				if retry {
 					log.Println("Edit conflicted twice on page", pageTitle, "so skipping")
 					return
@@ -256,7 +298,7 @@ func processArticle(w *mwclient.Client, pageTitle, pageContent, revTS, curTS str
 					return
 				}
 
-				processArticle(w, pageTitle, fetchedContent, revTS, curTS, true)
+				processArticle(w, pageTitle, fetchedContent, pageContentModel, revTS, curTS, true)
 				return
 			}
 

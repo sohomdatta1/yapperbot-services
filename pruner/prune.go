@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"log"
 	"regexp"
 	"strings"
@@ -33,6 +34,15 @@ import (
 //
 
 type preppedStatementsCallback func()
+
+type MassMessageContent struct {
+	Description string                     `json:"description"`
+	Targets     []MassMessageContentTarget `json:"targets"`
+}
+
+type MassMessageContentTarget struct {
+	Title string `json:"title"`
+}
 
 const indeffedUsers, inactiveUsers int8 = 0, 1
 
@@ -101,12 +111,177 @@ func withDatabaseConnection(cb preppedStatementsCallback) {
 	cb()
 }
 
+func checkUser(
+	username string, pageTitle string, editsSinceStamp string, blockStamp string, usersToReplace map[string]string, usersToRemove map[int8][]string) {
+	var outputFromQueryRow string
+	var dbUsername string = usernameCase(username)
+	// We have no use whatsoever for the output of this, we just want to see if it errors.
+	// That being said, Scan() doesn't let us just pass nothing, so we have to have the
+	// slight pain of having a stupid additional variable.
+	err := lastEditQuery.QueryRow(dbUsername, editsSinceStamp).Scan(&outputFromQueryRow)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// they haven't edited in the timeframe, or they have redirected
+			// check a redirect for them
+			// annoyingly, unlike the user database rows, the page rows have spaces as underscores,
+			// so we have to use this with the inverse replacement we use for all the other checks
+			err := userRedirectQuery.QueryRow(strings.ReplaceAll(dbUsername, " ", "_")).Scan(&outputFromQueryRow)
+			if err == sql.ErrNoRows {
+				// No redirect found, just remove them
+				log.Println("Queuing", dbUsername, "on title", pageTitle, "for pruning")
+				usersToRemove[inactiveUsers] = append(usersToRemove[inactiveUsers], username)
+				return
+			} else if err != nil {
+				ybtools.PanicErr("Failed when querying DB for redirects with error ", err)
+			}
+			// A redirect was found! Replace underscores with spaces, and if it redirects to a subpage,
+			// get the corresponding root page, before a /, for the user (which is, after all, their username).
+			outputFromQueryRow = strings.SplitN(strings.ReplaceAll(outputFromQueryRow, "_", " "), "/", 2)[0]
+			log.Println("Found a redirect for", username, "so replacing them on", pageTitle, "with", outputFromQueryRow)
+			usersToReplace[username] = outputFromQueryRow
+			// this is here to make sure that the redirect target is also checked for indefs
+			dbUsername = outputFromQueryRow
+		} else {
+			ybtools.PanicErr("Failed when querying DB for last edits with error ", err)
+		}
+	}
+
+	// if they still aren't being pruned, check whether they're indefinitely blocked
+	err = blockQuery.QueryRow(dbUsername, blockStamp).Scan(&outputFromQueryRow)
+	if err == nil {
+		// the user is indeffed, as a row has been found
+		log.Println("Queuing indeffed user", username, "on title", pageTitle, "for pruning")
+		usersToRemove[indeffedUsers] = append(usersToRemove[indeffedUsers], username)
+		return
+	} else if err != sql.ErrNoRows {
+		log.Fatal("Failed when querying DB for blocks with error ", err)
+	}
+}
+
+func pruneUsersFromMMList(
+	pageTitle string,
+	pageContent MassMessageContent,
+	inactivityTs time.Time,
+	blockTs time.Time,
+) (string, int, int, int, []string, map[string]string) {
+
+	checkedUsers := map[string]bool{}
+
+	usersToReplace := map[string]string{}
+	// keys are inactiveUsers / indeffedUsers
+	usersToRemove := map[int8][]string{}
+
+	// format in line with https://www.mediawiki.org/wiki/Manual:Timestamp
+	editsSinceStamp := inactivityTs.Format(mediaWikiTimestampFormat)
+	blockStamp := blockTs.Format(mediaWikiTimestampFormat)
+
+	// New page content that mirrors size of old one
+	newPageContent := MassMessageContent{
+		Description: pageContent.Description,
+		Targets:     make([]MassMessageContentTarget, 0, len(pageContent.Targets)),
+	}
+
+	prefixes := []string{"User:", "User talk:"}
+
+	// First pass: decide what to remove/replace
+	for _, target := range pageContent.Targets {
+		title := target.Title
+
+		var (
+			username string
+			isUser   bool
+		)
+
+		for _, p := range prefixes {
+			if strings.HasPrefix(title, p) {
+				username = strings.TrimPrefix(title, p)
+				isUser = true
+				break
+			}
+		}
+		if !isUser {
+			continue
+		}
+
+		username = strings.Split(username, "/")[0]
+
+		if checkedUsers[username] {
+			continue
+		}
+
+		checkUser(username, pageTitle, editsSinceStamp, blockStamp, usersToReplace, usersToRemove)
+		checkedUsers[username] = true
+	}
+
+	// Make removal set for fast filtering
+	removeSet := map[string]bool{}
+	for _, u := range usersToRemove[inactiveUsers] {
+		removeSet[u] = true
+	}
+	for _, u := range usersToRemove[indeffedUsers] {
+		removeSet[u] = true
+	}
+
+	// Second pass: actually prune/replace targets
+	for _, target := range pageContent.Targets {
+		title := target.Title
+
+		var username string
+		var isUser bool
+		for _, p := range prefixes {
+			if after, ok := strings.CutPrefix(title, p); ok {
+				username = after
+				isUser = true
+				break
+			}
+		}
+
+		parts := strings.SplitN(username, "/", 2)
+
+		username = parts[0]
+
+		var subpage string
+		if len(parts) == 2 {
+			subpage = parts[1]
+		}
+
+		// Non-user targets are preserved
+		if !isUser {
+			newPageContent.Targets = append(newPageContent.Targets, target)
+			continue
+		}
+
+		// Drop removed users
+		if removeSet[username] {
+			continue
+		}
+
+		// Apply replacement if present
+		if repl, ok := usersToReplace[username]; ok {
+			target.Title = "User talk:" + repl + subpage
+		}
+
+		newPageContent.Targets = append(newPageContent.Targets, target)
+	}
+
+	// Zero chance of there being errors here
+	serializedPageContent, _ := json.Marshal(newPageContent)
+
+	return string(serializedPageContent),
+		len(usersToRemove[inactiveUsers]),
+		len(usersToRemove[indeffedUsers]),
+		len(usersToReplace),
+		usersToRemove[inactiveUsers],
+		usersToReplace
+}
+
 // pruneUsersFromList takes a page title, the content of the page, the formatRegex for the users on the page,
 // and the configured inactivity timestamp for the page. It then processes the page, pruning the users who it
 // needs to remove, and returns the new page content, the number of expired users,
 // number of indeffed users, number of renamed users, an array of the expired users,
 // and a map of the renamed users (with their old name as the key, and their new name as the value).
-func pruneUsersFromList(
+func pruneUsersFromWikitextList(
 	pageTitle string, pageContent string, formatRegex *regexp.Regexp, inactivityTs time.Time, blockTs time.Time) (
 	string, int, int, int, []string, map[string]string) {
 	var regexBuilder strings.Builder
@@ -124,7 +299,7 @@ func pruneUsersFromList(
 	var blockStamp string = blockTs.Format(mediaWikiTimestampFormat)
 
 	for _, match := range formatRegex.FindAllStringSubmatch(pageContent, -1) {
-		var outputFromQueryRow string
+
 		// the first regex capture group should always be the username
 		if len(match) != 2 {
 			ybtools.PanicErr("Match doesn't have exactly one capture group for regex", formatRegex, "- matched:", match)
@@ -138,49 +313,7 @@ func pruneUsersFromList(
 		}
 
 		checkedUsers[username] = true
-		var dbUsername string = usernameCase(username)
-		// We have no use whatsoever for the output of this, we just want to see if it errors.
-		// That being said, Scan() doesn't let us just pass nothing, so we have to have the
-		// slight pain of having a stupid additional variable.
-		err := lastEditQuery.QueryRow(dbUsername, editsSinceStamp).Scan(&outputFromQueryRow)
-
-		if err != nil {
-			if err == sql.ErrNoRows {
-				// they haven't edited in the timeframe, or they have redirected
-				// check a redirect for them
-				// annoyingly, unlike the user database rows, the page rows have spaces as underscores,
-				// so we have to use this with the inverse replacement we use for all the other checks
-				err := userRedirectQuery.QueryRow(strings.ReplaceAll(dbUsername, " ", "_")).Scan(&outputFromQueryRow)
-				if err == sql.ErrNoRows {
-					// No redirect found, just remove them
-					log.Println("Queuing", username, "on title", pageTitle, "for pruning")
-					usersToRemove[inactiveUsers] = append(usersToRemove[inactiveUsers], username)
-					continue
-				} else if err != nil {
-					ybtools.PanicErr("Failed when querying DB for redirects with error ", err)
-				}
-				// A redirect was found! Replace underscores with spaces, and if it redirects to a subpage,
-				// get the corresponding root page, before a /, for the user (which is, after all, their username).
-				outputFromQueryRow = strings.SplitN(strings.ReplaceAll(outputFromQueryRow, "_", " "), "/", 2)[0]
-				log.Println("Found a redirect for", username, "so replacing them on", pageTitle, "with", outputFromQueryRow)
-				usersToReplace[username] = outputFromQueryRow
-				// this is here to make sure that the redirect target is also checked for indefs
-				dbUsername = outputFromQueryRow
-			} else {
-				ybtools.PanicErr("Failed when querying DB for last edits with error ", err)
-			}
-		}
-
-		// if they still aren't being pruned, check whether they're indefinitely blocked
-		err = blockQuery.QueryRow(dbUsername, blockStamp).Scan(&outputFromQueryRow)
-		if err == nil {
-			// the user is indeffed, as a row has been found
-			log.Println("Queuing indeffed user", username, "on title", pageTitle, "for pruning")
-			usersToRemove[indeffedUsers] = append(usersToRemove[indeffedUsers], username)
-			continue
-		} else if err != sql.ErrNoRows {
-			log.Fatal("Failed when querying DB for blocks with error ", err)
-		}
+		checkUser(username, pageTitle, editsSinceStamp, blockStamp, usersToReplace, usersToRemove)
 	}
 
 	/*

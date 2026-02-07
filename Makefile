@@ -1,5 +1,5 @@
-FRSSOURCES := $(shell find frs -name "*.go")
-PRUNERSOURCES := $(shell find pruner -name "*.go")
+FRSSOURCES := $(shell find . -name "*.go")
+PRUNERSOURCES := $(shell find . -name "*.go")
 UNCURRENTERSOURCES := $(shell find . -name "*.go")
 
 all: frs/frs pruner/pruner uncurrenter/uncurrenter
