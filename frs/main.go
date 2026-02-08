@@ -19,6 +19,7 @@ package main
 //
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -36,6 +37,8 @@ import (
 	"github.com/metal3d/go-slugify"
 	"github.com/sohomdatta1/yapperbot-services/ybtools"
 )
+
+var wikiErrors map[string]string = make(map[string]string, 0)
 
 func init() {
 	ybtools.SetupBot(ybtools.BotSettings{TaskName: "FRS", BotUser: "SodiumBot", ToolforgeAccount: "yapping-sodium"})
@@ -175,12 +178,16 @@ func processCategory(w *mwclient.Client, category string, rfcCat bool) {
 					for _, rfc := range rfcsToProcess {
 						if rfc.ID == "" {
 							log.Println("RfC has no ID yet on page", pageTitle, "so skipping that RfC")
+							wikiErrors[pageTitle] = "RfC has no ID yet on page " + pageTitle + " so skipping that RfC"
 							continue RFCLOOP
 						} else if rfc.FeedbackDone {
 							log.Println("RfC feedback already done for an RfC on", pageTitle, "so skipping that RfC")
 						} else {
 							log.Println("Requesting feedback for an RfC on", pageTitle)
-							requestFeedbackFor(rfc, w)
+							err = requestFeedbackFor(rfc, w)
+							if err != nil {
+								wikiErrors[rfc.PageTitle()] = err.Error()
+							}
 						}
 						rfcsDone = append(rfcsDone, rfc)
 					}
@@ -195,7 +202,15 @@ func processCategory(w *mwclient.Client, category string, rfcCat bool) {
 						// it's the first page from last time, we're probably at the end - skip over it
 						continue PAGELOOP
 					} else {
-						requestFeedbackFor(extractGANom(pageContent, pageTitle), w)
+						ganom, err := extractGANom(pageContent, pageTitle)
+						if err != nil {
+							wikiErrors[pageTitle] = err.Error()
+							continue PAGELOOP
+						}
+						err = requestFeedbackFor(ganom, w)
+						if err != nil {
+							wikiErrors[ganom.PageTitle()] = err.Error()
+						}
 					}
 				}
 			}
@@ -235,4 +250,20 @@ func finishRun(w *mwclient.Client) {
 	// however, we do NOT want to defer it, because if we do, it would still run on panicks.
 	// if something has gone wrong, we don't want to send messages, so we oughtn't run this.
 	messages.SendMessageQueue(w)
+	logErrors(w)
+}
+
+// Log all recoverable errors onwiki on a page that can be watchlisted
+func logErrors(w *mwclient.Client) {
+	numErrs := len(wikiErrors)
+
+	errTable := buildErrorTable(wikiErrors)
+
+	w.Edit(params.Values{
+		"pageid":   yapperconfig.Config.ErrorsPageID,
+		"summary":  fmt.Sprintf("FRS run finished with %d errors, updating errors page", numErrs),
+		"notminor": "true",
+		"bot":      "true",
+		"text":     errTable,
+	})
 }

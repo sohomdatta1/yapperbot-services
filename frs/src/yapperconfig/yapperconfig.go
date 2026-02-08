@@ -27,6 +27,7 @@ type configObject struct {
 	SentCountPageID          string
 	GAGuidelinesHeaderPageID string
 	RFCsDonePageID           string
+	ErrorsPageID             string
 }
 
 // Config is the global configuration object. This should only really ever be read from.

@@ -109,9 +109,9 @@ func main() {
 			if err == nil {
 				log.Println("Successfully removed current template from", pageTitle)
 			} else {
-				switch err.(type) {
+				switch err := err.(type) {
 				case mwclient.APIError:
-					if err.(mwclient.APIError).Code == "editconflict" {
+					if err.Code == "editconflict" {
 						log.Println("Edit conflicted on page", pageTitle, "assuming it's still active and skipping")
 						return
 					}

@@ -19,6 +19,7 @@ package main
 //
 
 import (
+	"errors"
 	"log"
 	"math/rand"
 	"strings"
@@ -35,7 +36,7 @@ const minMsgsToSend int = 5
 
 // requestFeedbackFor takes an object that implements frsRequesting and a mwclient instance,
 // and processes the feedback request for the frsRequesting object.
-func requestFeedbackFor(requester frsRequesting, w *mwclient.Client) {
+func requestFeedbackFor(requester frsRequesting, w *mwclient.Client) (err error) {
 	// msgsToSend is a randomly-selected number of messages we want to send out.
 	// it evaluates out to any number between max and min
 	var msgsToSend int = (rand.Intn(maxMsgsToSend-minMsgsToSend) + minMsgsToSend)
@@ -66,7 +67,7 @@ func requestFeedbackFor(requester frsRequesting, w *mwclient.Client) {
 	// Early return if the page is in userspace, prevent
 	// https://en.wikipedia.org/wiki/Wikipedia:Bots/Noticeboard#c-Dw31415-20260109145700-Dw31415_-_DwAlphaBot_-_SodiumBot_conflict_on_RfCHistory
 	if strings.HasPrefix(requester.PageTitle(), "User:") {
-		return
+		return nil
 	}
 
 	if len(headersToSendTo) > 0 {
@@ -80,7 +81,9 @@ func requestFeedbackFor(requester frsRequesting, w *mwclient.Client) {
 			})
 			log.Println("Queued a message for", user.Username, "to give feedback on", requester.PageTitle(), "in", user.Header)
 		}
+		return nil
 	} else {
 		log.Println("WARNING: Headers to send to returned as less than one for page", requester.PageTitle(), "so ignoring for now, but this could be a bug")
+		return errors.New("Did not find a header for " + requester.PageTitle() + "no messages were sent for that page")
 	}
 }

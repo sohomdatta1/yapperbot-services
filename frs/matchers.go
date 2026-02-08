@@ -25,7 +25,6 @@ import (
 
 	"github.com/sohomdatta1/yapperbot-services/frs/src/ga"
 	"github.com/sohomdatta1/yapperbot-services/frs/src/rfc"
-	"github.com/sohomdatta1/yapperbot-services/ybtools"
 )
 
 // rfcMatcher is a regex that matches {{rfc}} templates on pages.
@@ -55,7 +54,7 @@ func init() {
 	// IMPORTANT: If the subtopic is empty, the first capture group will be empty string, and likewise for the topic.
 	// This regex will always prefer a topic to a subtopic, but will settle for a subtopic if no topic is available.
 	// Great thanks go to Ouims from #regex on Freenode for the help with debugging and correcting this regex!
-	gaMatcher = regexp.MustCompile(`(?i){{GA nominee(?:\|(?:[^|}]*?\|)*(?:[\t\f\v ]*?(?:subtopic=([^|}]+).*?)|topic=([^|}]+))|.*?)*}}`)
+	gaMatcher = regexp.MustCompile(`(?i){{GA nominee(?:\s*\|(?:[^|}]*?\|)*(?:[\t\f\v ]*?(?:subtopic=([^|}]+).*?)|topic=([^|}]+))|.*?)*\s*}}`)
 
 	// Matches against named parameters in the parameter list.
 	// Ensures the equals is after a named param specifically.
@@ -102,15 +101,30 @@ func extractRfcs(content string, title string, excludeDone bool) (rfcs []rfc.RfC
 
 // extractGANom takes a page name and content that's been nominated for GA,
 // and returns the GA nom object.
-func extractGANom(content string, title string) (nom ga.Nom) {
-	matchedGaTag := gaMatcher.FindStringSubmatch(content)
-	defer func() {
-		if r := recover(); r != nil {
-			ybtools.PanicErr(fmt.Sprintf("Substring matching for %s failed in matchers.extractGANom", title))
-		}
-	}()
-	// first capture group is name of topic, if applicable
-	// second capture group is name of subtopic
-	nom = ga.Nom{Topic: matchedGaTag[2], Subtopic: matchedGaTag[1], Article: title}
-	return
+func extractGANom(content string, title string) (ga.Nom, error) {
+	matches := gaMatcher.FindStringSubmatch(content)
+	if matches == nil {
+		return ga.Nom{}, fmt.Errorf(
+			"no GA nomination template found in article %q",
+			title,
+		)
+	}
+
+	// Defensive: ensure we actually have the capture groups we expect
+	// matches[0] is the full match, so we need at least 3 entries
+	if len(matches) < 3 {
+		return ga.Nom{}, fmt.Errorf(
+			"GA matcher returned %d groups for article %q (expected >= 3)",
+			len(matches),
+			title,
+		)
+	}
+
+	nom := ga.Nom{
+		Topic:    matches[2],
+		Subtopic: matches[1],
+		Article:  title,
+	}
+
+	return nom, nil
 }
