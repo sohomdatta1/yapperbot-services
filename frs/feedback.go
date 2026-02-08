@@ -84,6 +84,6 @@ func requestFeedbackFor(requester frsRequesting, w *mwclient.Client) (err error)
 		return nil
 	} else {
 		log.Println("WARNING: Headers to send to returned as less than one for page", requester.PageTitle(), "so ignoring for now, but this could be a bug")
-		return errors.New("Did not find a header for " + requester.PageTitle() + "no messages were sent for that page")
+		return errors.New("Did not find a header for " + requester.PageTitle() + " no messages were sent for that page")
 	}
 }

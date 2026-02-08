@@ -13,7 +13,7 @@ func buildErrorTable(errors map[string]string) string {
 
 	var b strings.Builder
 
-	b.WriteString("This page keeps track of the latest errors that SodiumBot during running the [[WP:FRS|Feedback request service]] job.")
+	b.WriteString("This page keeps track of the latest errors that SodiumBot during running the [[WP:FRS|Feedback request service]] job.\n\n")
 	b.WriteString("{| class=\"wikitable sortable\"\n")
 	b.WriteString("! Page\n")
 	b.WriteString("! Error\n")
