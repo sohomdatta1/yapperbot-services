@@ -252,8 +252,8 @@ func processArticle(w *mwclient.Client, pageTitle, pageContent, pageContentModel
 			}
 
 			for user, message := range userMessages {
-				userPage, _ := ybtools.FetchWikitextFromTitle("User talk:" + user)
-				if ybtools.BotAllowed(userPage) && ybtools.CanEdit() {
+				userPage, err := ybtools.FetchWikitextFromTitle("User talk:" + user)
+				if ybtools.BotAllowed(userPage) && ybtools.CanEdit() && err == nil {
 					err := w.Edit(params.Values{
 						"title":        "User talk:" + user,
 						"section":      "new",
